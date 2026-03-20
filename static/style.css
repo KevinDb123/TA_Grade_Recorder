@@ -163,24 +163,67 @@ label,
 }
 
 .workbook-card {
-    min-height: 104px;
-    padding: 16px 18px;
+    min-height: 118px;
+    padding: 18px 18px 16px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(232, 244, 255, 0.92));
+    gap: 8px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.99), rgba(232, 244, 255, 0.94)),
+        linear-gradient(135deg, rgba(123, 184, 235, 0.12), transparent 55%);
 }
 
-.workbook-card strong {
-    margin-top: 8px;
+.workbook-card-panel {
+    min-height: 0;
+    margin-bottom: 14px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(140, 179, 220, 0.16);
+    box-shadow: none;
+    background: rgba(248, 251, 255, 0.88);
+}
+
+.workbook-card-name {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(140, 179, 220, 0.16);
+    box-shadow: none;
     font-size: 0.88rem;
     line-height: 1.45;
     word-break: break-all;
     color: var(--text);
 }
 
-.workbook-card span {
-    letter-spacing: 0.05em;
+.workbook-card-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    opacity: 0.8;
+}
+
+.workbook-card-meta {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.workbook-card-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: rgba(76, 161, 111, 0.08);
+    color: #2d7b49;
+    border: 1px solid rgba(76, 161, 111, 0.14);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    box-shadow: none;
 }
 
 .top-grid {
@@ -288,13 +331,6 @@ label,
     flex: 1 1 210px;
 }
 
-.upload-stack {
-    min-width: 180px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
 .button-cluster {
     display: flex;
     gap: 12px;
@@ -304,6 +340,19 @@ label,
 
 .manager-actions {
     margin-top: 14px;
+}
+
+.mini-panel .manager-actions button {
+    min-width: 136px;
+}
+
+.mini-panel .secondary-button {
+    background: linear-gradient(135deg, #7eb8ea, #4f9adc);
+    box-shadow: 0 12px 22px rgba(101, 160, 214, 0.22);
+}
+
+.mini-panel .secondary-button:hover {
+    box-shadow: 0 16px 26px rgba(101, 160, 214, 0.28);
 }
 
 .single-action {
@@ -387,10 +436,10 @@ button:disabled {
 }
 
 .secondary-button {
-    background: rgba(255, 255, 255, 0.98);
-    color: var(--accent-deep);
-    border: 1px solid rgba(126, 178, 230, 0.26);
-    box-shadow: var(--shadow-light);
+    background: linear-gradient(135deg, #7eb8ea, #4f9adc);
+    color: #ffffff;
+    border: 1px solid rgba(96, 156, 210, 0.2);
+    box-shadow: 0 12px 22px rgba(101, 160, 214, 0.22);
 }
 
 .danger-button {
@@ -626,17 +675,20 @@ textarea {
 }
 
 .report-layout {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 270px minmax(0, 1fr);
     align-items: start;
+    gap: 18px;
 }
 
 .toolbar-panel {
     margin-bottom: 16px;
+    padding: 18px;
 }
 
 .toolbar-grid {
-    grid-template-columns: 1fr 1fr auto;
-    align-items: end;
+    grid-template-columns: minmax(260px, 1.05fr) minmax(180px, 0.8fr) auto;
+    align-items: stretch;
+    gap: 14px;
 }
 
 .summary-panel,
@@ -647,14 +699,19 @@ textarea {
 .summary-panel {
     position: sticky;
     top: 18px;
+    padding: 18px;
 }
 
 .accent-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 246, 255, 0.92));
+    background:
+        radial-gradient(circle at top right, rgba(123, 184, 235, 0.16), transparent 36%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(236, 246, 255, 0.93));
 }
 
 .reading-panel {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 248, 253, 0.9));
+    padding: 18px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(242, 248, 253, 0.92));
 }
 
 .stats-grid {
@@ -667,44 +724,48 @@ textarea {
 
 .report-status-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
 }
 
 .stat-card {
-    padding: 14px;
+    padding: 15px 16px;
     border-radius: 16px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(140, 179, 220, 0.18);
-    box-shadow: var(--shadow-light);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(247, 250, 254, 0.92));
+    border: 1px solid rgba(140, 179, 220, 0.16);
+    box-shadow: 0 10px 20px rgba(120, 167, 210, 0.08);
 }
 
 .emphasis-card {
-    background: linear-gradient(135deg, rgba(223, 240, 255, 0.95), rgba(255, 255, 255, 0.95));
+    background: linear-gradient(135deg, rgba(225, 241, 255, 0.98), rgba(255, 255, 255, 0.96));
+    border-color: rgba(111, 170, 219, 0.2);
 }
 
 .stat-card span {
     display: block;
     color: var(--muted);
-    font-size: 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
 }
 
 .stat-card strong {
     display: block;
-    margin-top: 10px;
-    font-size: 1.34rem;
+    margin-top: 8px;
+    font-size: 1.46rem;
     line-height: 1;
 }
 
 .table-panel .section-title {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .report-search-box {
     margin-top: 12px;
-    margin-bottom: 14px;
-    padding: 14px;
+    margin-bottom: 16px;
+    padding: 12px 14px;
     border-radius: 16px;
-    background: linear-gradient(180deg, rgba(246, 251, 255, 0.98), rgba(236, 246, 255, 0.88));
-    border: 1px solid rgba(140, 179, 220, 0.16);
+    background: linear-gradient(180deg, rgba(247, 251, 255, 0.98), rgba(238, 247, 255, 0.9));
+    border: 1px solid rgba(140, 179, 220, 0.14);
 }
 
 .report-search-row {
@@ -712,12 +773,14 @@ textarea {
 }
 
 .score-table-wrap {
-    margin-top: 14px;
+    margin-top: 10px;
     overflow: auto;
     border-radius: 18px;
-    border: 1px solid rgba(140, 179, 220, 0.18);
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(140, 179, 220, 0.16);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 14px 28px rgba(120, 167, 210, 0.08);
 }
 
 .score-table {
@@ -728,7 +791,7 @@ textarea {
 
 .score-table th,
 .score-table td {
-    padding: 11px 13px;
+    padding: 12px 14px;
     text-align: left;
     border-bottom: 1px solid rgba(140, 179, 220, 0.14);
 }
@@ -736,19 +799,20 @@ textarea {
 .score-table th {
     position: sticky;
     top: 0;
-    background: #f1f7fc;
+    background: linear-gradient(180deg, #f6fbff, #eef5fb);
     color: var(--muted);
     font-weight: 700;
     font-size: 0.7rem;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .refined-table tbody tr:nth-child(odd) {
-    background: rgba(243, 248, 253, 0.72);
+    background: rgba(246, 250, 254, 0.9);
 }
 
 .refined-table tbody tr:hover {
-    background: rgba(228, 242, 255, 0.88);
+    background: rgba(231, 244, 255, 0.92);
 }
 
 .score-cell {
@@ -763,17 +827,17 @@ textarea {
 }
 
 .pagination-bar {
-    margin-top: 14px;
+    margin-top: 16px;
 }
 
 .refined-pagination {
-    padding-top: 14px;
-    border-top: 1px solid rgba(140, 179, 220, 0.14);
+    padding-top: 16px;
+    border-top: 1px solid rgba(140, 179, 220, 0.12);
 }
 
 .pagination-row {
-    align-items: end;
-    justify-content: space-between;
+    align-items: center;
+    justify-content: flex-end;
 }
 
 .page-size-field,
@@ -786,6 +850,10 @@ textarea {
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: rgba(246, 250, 254, 0.9);
+    border: 1px solid rgba(140, 179, 220, 0.12);
 }
 
 .student-pagination {
@@ -833,7 +901,6 @@ textarea {
         flex: 1 1 auto;
     }
 
-    .upload-stack,
     .file-input,
     .field,
     .page-size-field,

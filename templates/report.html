@@ -12,10 +12,6 @@
             <div class="hero-copy">
                 <h1>成绩查看</h1>
             </div>
-            <div class="workbook-card workbook-card-report">
-                <span>当前文件</span>
-                <strong id="report-current-workbook">{{ workbook_name }}</strong>
-            </div>
         </section>
 
         <nav class="page-nav">
@@ -32,13 +28,12 @@
             </div>
 
             <div class="toolbar-grid">
-                <div class="field field-grow">
-                    <label for="report-workbook-select">Excel 文件</label>
-                    <select id="report-workbook-select">
-                        {% for workbook in workbook_choices %}
-                        <option value="{{ workbook.value }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.label }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="workbook-card workbook-card-panel">
+                    <span class="workbook-card-label">当前文件</span>
+                    <strong id="report-current-workbook" class="workbook-card-name">{{ workbook_name }}</strong>
+                    <div class="workbook-card-meta">
+                        <span class="workbook-card-badge">已导入</span>
+                    </div>
                 </div>
                 <div class="field field-grow">
                     <label for="report-experiment-select">次数</label>
@@ -49,9 +44,10 @@
                     </select>
                 </div>
                 <div class="button-cluster single-action">
-                    <button id="report-switch-workbook" type="button">切换文件</button>
+                    <button id="report-upload-workbook" type="button">导入文件</button>
                 </div>
             </div>
+            <input id="report-upload-workbook-input" type="file" accept=".xlsx" class="file-input" hidden>
         </section>
 
         <section class="report-layout refined-report-layout">
@@ -123,9 +119,10 @@
     </main>
 
     <script>
-        const workbookSelect = document.getElementById('report-workbook-select');
         const experimentSelect = document.getElementById('report-experiment-select');
         const currentWorkbook = document.getElementById('report-current-workbook');
+        const uploadWorkbookButton = document.getElementById('report-upload-workbook');
+        const uploadWorkbookInput = document.getElementById('report-upload-workbook-input');
         const toast = document.getElementById('report-toast');
         const title = document.getElementById('report-title');
         const tableBody = document.getElementById('report-table-body');
@@ -137,6 +134,9 @@
             scored: document.getElementById('stat-scored'),
             missing: document.getElementById('stat-missing'),
         };
+        const tauriInvoke = window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function'
+            ? window.__TAURI_INTERNALS__.invoke
+            : null;
         let allRows = {{ report.rows|tojson }};
         let filteredRows = [...allRows];
         let currentPage = 1;
@@ -228,6 +228,25 @@
             applySearchFilter();
         }
 
+        async function refreshWorkbookState(data) {
+            currentWorkbook.textContent = data.workbook.name;
+            experimentSelect.innerHTML = '';
+            (data.experiments || []).forEach((experiment) => {
+                const option = document.createElement('option');
+                option.value = experiment.column;
+                option.textContent = experiment.name;
+                experimentSelect.appendChild(option);
+            });
+            if (experimentSelect.value) {
+                await refreshReport(experimentSelect.value);
+            } else {
+                title.textContent = '';
+                allRows = [];
+                filteredRows = [];
+                renderTable();
+            }
+        }
+
         prevPageButton.addEventListener('click', () => {
             currentPage -= 1;
             renderTable();
@@ -254,23 +273,43 @@
             }, 120);
         });
 
-        document.getElementById('report-switch-workbook').addEventListener('click', async () => {
+        uploadWorkbookButton.addEventListener('click', async () => {
             try {
-                const switched = await postJSON('/api/workbooks/select', {
-                    filename: workbookSelect.value,
-                });
-                currentWorkbook.textContent = switched.workbook.name;
-                experimentSelect.innerHTML = '';
-                switched.experiments.forEach((experiment) => {
-                    const option = document.createElement('option');
-                    option.value = experiment.column;
-                    option.textContent = experiment.name;
-                    experimentSelect.appendChild(option);
-                });
-                await refreshReport(experimentSelect.value);
+                if (tauriInvoke) {
+                    const pickedPath = await tauriInvoke('pick_workbook');
+                    if (!pickedPath) {
+                        return;
+                    }
+                    const switched = await postJSON('/api/workbooks/import-path', {
+                        path: pickedPath,
+                    });
+                    await refreshWorkbookState(switched);
+                    showToast(switched.message);
+                    return;
+                }
+
+                if (!uploadWorkbookInput.files.length) {
+                    uploadWorkbookInput.click();
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('file', uploadWorkbookInput.files[0]);
+                const response = await fetch('/api/workbooks/upload', { method: 'POST', body: formData });
+                const switched = await response.json();
+                if (!response.ok) {
+                    throw new Error(switched.message || '请求失败');
+                }
+                await refreshWorkbookState(switched);
+                uploadWorkbookInput.value = '';
                 showToast(switched.message);
             } catch (error) {
                 showToast(error.message, true);
+            }
+        });
+
+        uploadWorkbookInput.addEventListener('change', () => {
+            if (uploadWorkbookInput.files.length) {
+                uploadWorkbookButton.click();
             }
         });
 

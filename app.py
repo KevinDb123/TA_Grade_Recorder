@@ -8,7 +8,7 @@ import warnings
 from copy import copy
 from dataclasses import dataclass
 from pathlib import Path
-from shutil import copyfileobj
+from shutil import copy2, copyfileobj
 from threading import RLock
 from typing import Any
 
@@ -88,8 +88,7 @@ class GradeBook:
         return choices
 
     def _find_workbook(self) -> Path | None:
-        files = self.list_workbooks()
-        return files[0] if files else None
+        return None
 
     def _require_workbook(self) -> Path:
         if self.workbook_path is None:
@@ -132,14 +131,30 @@ class GradeBook:
 
         base_name = secure_filename(Path(original_name).stem) or "uploaded_workbook"
         candidate = self.base_dir / f"{base_name}.xlsx"
+        file_storage.stream.seek(0)
+        with candidate.open("wb") as handle:
+            copyfileobj(file_storage.stream, handle)
+
+        with self.lock:
+            self.workbook_path = candidate
+        return {"name": candidate.name}
+
+    def import_workbook_path(self, workbook_path: str) -> dict[str, str]:
+        return self.open_workbook_path(workbook_path)
+        source = Path(workbook_path).expanduser()
+        if not source.exists() or not source.is_file():
+            raise ValueError("未找到指定的 Excel 文件。")
+        if source.suffix.lower() != ".xlsx":
+            raise ValueError("只能导入 xlsx 文件。")
+
+        base_name = secure_filename(source.stem) or "uploaded_workbook"
+        candidate = self.base_dir / f"{base_name}.xlsx"
         counter = 1
         while candidate.exists():
             candidate = self.base_dir / f"{base_name}_{counter}.xlsx"
             counter += 1
 
-        file_storage.stream.seek(0)
-        with candidate.open("wb") as handle:
-            copyfileobj(file_storage.stream, handle)
+        copy2(source, candidate)
 
         with self.lock:
             self.workbook_path = candidate
@@ -803,6 +818,20 @@ def api_open_workbook_path():
     return jsonify(
         {
             "message": "已打开 Excel 文件。",
+            "workbook": result,
+            "workbooks": gradebook.workbook_choices(),
+            "experiments": gradebook.get_experiments(),
+        }
+    )
+
+
+@app.post("/api/workbooks/import-path")
+def api_import_workbook_path():
+    payload = request.get_json(force=True)
+    result = gradebook.import_workbook_path(payload["path"])
+    return jsonify(
+        {
+            "message": "已成功导入 Excel 文件。",
             "workbook": result,
             "workbooks": gradebook.workbook_choices(),
             "experiments": gradebook.get_experiments(),

@@ -12,10 +12,6 @@
             <div class="hero-copy">
                 <h1>平时成绩管理</h1>
             </div>
-            <div class="workbook-card">
-                <span>当前文件</span>
-                <strong id="current-workbook">{{ workbook_name }}</strong>
-            </div>
         </section>
 
         <nav class="page-nav">
@@ -36,24 +32,17 @@
                     <div class="mini-panel-header">
                         <h3>文件</h3>
                     </div>
-                    <div class="row workbook-row">
-                        <div class="field field-grow">
-                            <label for="workbook-select">Excel 文件</label>
-                            <select id="workbook-select">
-                                {% for workbook in workbook_choices %}
-                                <option value="{{ workbook.value }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="upload-stack">
-                            <label for="upload-workbook-input">导入新文件</label>
-                            <input id="upload-workbook-input" type="file" accept=".xlsx" class="file-input">
+                    <div class="workbook-card workbook-card-panel">
+                        <span class="workbook-card-label">当前文件</span>
+                        <strong id="current-workbook-inline" class="workbook-card-name">{{ workbook_name }}</strong>
+                        <div class="workbook-card-meta">
+                            <span class="workbook-card-badge">已导入</span>
                         </div>
                     </div>
                     <div class="button-cluster manager-actions">
                         <button id="upload-workbook" class="secondary-button" type="button">导入文件</button>
-                        <button id="switch-workbook" type="button">切换文件</button>
                     </div>
+                    <input id="upload-workbook-input" type="file" accept=".xlsx" class="file-input" hidden>
                 </section>
 
                 <section class="mini-panel mini-panel-accent">
@@ -172,10 +161,9 @@
     </main>
 
     <script>
-        const workbookSelect = document.getElementById('workbook-select');
         const uploadWorkbookInput = document.getElementById('upload-workbook-input');
         const uploadWorkbookButton = document.getElementById('upload-workbook');
-        const currentWorkbook = document.getElementById('current-workbook');
+        const currentWorkbookInline = document.getElementById('current-workbook-inline');
         const experimentSelect = document.getElementById('experiment-select');
         const experimentNameInput = document.getElementById('experiment-name-input');
         const toast = document.getElementById('toast');
@@ -183,6 +171,9 @@
         const selectedStudentBox = document.getElementById('selected-student');
         const searchInput = document.getElementById('search-input');
         const singleScoreInput = document.getElementById('single-score');
+        const tauriInvoke = window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function'
+            ? window.__TAURI_INTERNALS__.invoke
+            : null;
         const searchPrevPageButton = document.getElementById('search-prev-page');
         const searchNextPageButton = document.getElementById('search-next-page');
         const searchPageIndicator = document.getElementById('search-page-indicator');
@@ -194,9 +185,6 @@
         const bulkPreviewPanel = document.getElementById('bulk-preview-panel');
         const bulkPreviewList = document.getElementById('bulk-preview-list');
         const bulkResult = document.getElementById('bulk-result');
-        const tauriInvoke = window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function'
-            ? window.__TAURI_INTERNALS__.invoke
-            : null;
         const bulkSummary = {
             total_lines: document.getElementById('bulk-total-lines'),
             matched_count: document.getElementById('bulk-matched-count'),
@@ -389,15 +377,7 @@
         }
 
         async function refreshWorkbookState(data) {
-            currentWorkbook.textContent = data.workbook.name;
-            workbookSelect.innerHTML = '';
-            data.workbooks.forEach((workbook) => {
-                const option = document.createElement('option');
-                option.value = workbook.value;
-                option.textContent = workbook.label;
-                option.selected = workbook.selected;
-                workbookSelect.appendChild(option);
-            });
+            currentWorkbookInline.textContent = data.workbook.name;
             experiments = data.experiments || [];
             renderExperimentOptions();
             clearStudentState();
@@ -453,7 +433,7 @@
                     if (!pickedPath) {
                         return;
                     }
-                    const data = await postJSON('/api/workbooks/open-path', {
+                    const data = await postJSON('/api/workbooks/import-path', {
                         path: pickedPath,
                     });
                     await refreshWorkbookState(data);
@@ -465,7 +445,7 @@
             }
 
             if (!uploadWorkbookInput.files.length) {
-                showToast('请选择要导入的 xlsx 文件。', true);
+                uploadWorkbookInput.click();
                 return;
             }
             const formData = new FormData();
@@ -484,15 +464,9 @@
             }
         });
 
-        document.getElementById('switch-workbook').addEventListener('click', async () => {
-            try {
-                const data = await postJSON('/api/workbooks/select', {
-                    filename: workbookSelect.value,
-                });
-                await refreshWorkbookState(data);
-                showToast(data.message);
-            } catch (error) {
-                showToast(error.message, true);
+        uploadWorkbookInput.addEventListener('change', () => {
+            if (uploadWorkbookInput.files.length) {
+                uploadWorkbookButton.click();
             }
         });
 
