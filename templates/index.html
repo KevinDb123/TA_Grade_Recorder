@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>平时成绩管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <div class="hero-copy">
+                <h1>平时成绩管理</h1>
+            </div>
+            <div class="workbook-card">
+                <span>当前文件</span>
+                <strong id="current-workbook">{{ workbook_name }}</strong>
+            </div>
+        </section>
+
+        <nav class="page-nav">
+            <a class="nav-link active" href="/">录分页面</a>
+            <a class="nav-link" href="/report">成绩查看</a>
+        </nav>
+
+        <section class="panel top-grid">
+            <div class="toolbar-header">
+                <div>
+                    <h2>文件与次数管理</h2>
+                </div>
+                <div id="toast" class="toast"></div>
+            </div>
+
+            <div class="manager-grid">
+                <section class="mini-panel">
+                    <div class="mini-panel-header">
+                        <h3>文件</h3>
+                    </div>
+                    <div class="row workbook-row">
+                        <div class="field field-grow">
+                            <label for="workbook-select">Excel 文件</label>
+                            <select id="workbook-select">
+                                {% for workbook in workbook_choices %}
+                                <option value="{{ workbook.name }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="upload-stack">
+                            <label for="upload-workbook-input">导入新文件</label>
+                            <input id="upload-workbook-input" type="file" accept=".xlsx" class="file-input">
+                        </div>
+                    </div>
+                    <div class="button-cluster manager-actions">
+                        <button id="upload-workbook" class="secondary-button" type="button">导入文件</button>
+                        <button id="switch-workbook" type="button">切换文件</button>
+                    </div>
+                </section>
+
+                <section class="mini-panel mini-panel-accent">
+                    <div class="mini-panel-header">
+                        <h3>次数</h3>
+                    </div>
+                    <div class="row">
+                        <div class="field field-grow">
+                            <label for="experiment-select">当前次数</label>
+                            <select id="experiment-select">
+                                {% for experiment in experiments %}
+                                <option value="{{ experiment.column }}">{{ experiment.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field field-grow">
+                            <label for="experiment-name-input">次数名称</label>
+                            <input id="experiment-name-input" type="text" placeholder="可重命名当前列，或作为新增列名称">
+                        </div>
+                    </div>
+                    <div class="button-cluster manager-actions">
+                        <button id="rename-experiment" class="secondary-button" type="button">重命名当前列</button>
+                        <button id="add-experiment" class="secondary-button" type="button">新增一列</button>
+                        <button id="delete-experiment" class="danger-button" type="button">删除当前列</button>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section class="content-grid">
+            <section class="panel work-panel search-panel">
+                <div class="section-title">
+                    <h2>搜索并保存成绩</h2>
+                </div>
+
+                <label for="search-input">学号 / 姓名搜索</label>
+                <input id="search-input" type="text">
+
+                <div id="student-results" class="student-results" hidden></div>
+
+                <div id="search-pagination" class="pagination-bar student-pagination" hidden>
+                    <div class="pagination-actions search-pagination-actions">
+                        <button type="button" id="search-prev-page" class="secondary-button">上一页</button>
+                        <span id="search-page-indicator" class="page-indicator">1 / 1</span>
+                        <button type="button" id="search-next-page" class="secondary-button">下一页</button>
+                    </div>
+                </div>
+
+                <div id="score-box" class="score-box">
+                    <div id="selected-student" class="selected-student" hidden></div>
+                    <div class="row">
+                        <div class="field field-grow">
+                            <label for="single-score">本次成绩</label>
+                            <input id="single-score" type="number" step="0.1" min="0" placeholder="请输入成绩">
+                        </div>
+                        <div class="button-cluster single-action">
+                            <button id="save-single" type="button">保存个人成绩</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel work-panel batch-panel">
+                <div class="section-title">
+                    <h2>批量保存</h2>
+                </div>
+
+                <label for="bulk-input">批量名单</label>
+                <div class="bulk-format-hint">格式：学号 成绩</div>
+                <textarea id="bulk-input"></textarea>
+
+                <div class="row batch-controls-row">
+                    <div class="field field-grow">
+                        <label for="same-score">统一成绩</label>
+                        <input id="same-score" type="number" step="0.1" min="0">
+                    </div>
+                    <div class="field field-grow">
+                        <label for="bulk-mode">写入方式</label>
+                        <select id="bulk-mode">
+                            <option value="overwrite">覆盖已有成绩</option>
+                            <option value="skip_existing">跳过已有成绩</option>
+                        </select>
+                    </div>
+                    <div class="field field-grow">
+                        <label for="bulk-clear-mode">保存后</label>
+                        <select id="bulk-clear-mode">
+                            <option value="keep">保留输入</option>
+                            <option value="clear">清空输入</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="button-cluster manager-actions">
+                    <button id="preview-bulk" class="secondary-button" type="button">预览批量结果</button>
+                    <button id="save-bulk" type="button">批量保存</button>
+                </div>
+
+                <div id="bulk-preview-panel" class="batch-preview-panel" hidden>
+                    <div class="preview-summary-grid">
+                        <article class="preview-summary-card"><span>总条数</span><strong id="bulk-total-lines">0</strong></article>
+                        <article class="preview-summary-card"><span>已匹配</span><strong id="bulk-matched-count">0</strong></article>
+                        <article class="preview-summary-card"><span>将写入</span><strong id="bulk-update-count">0</strong></article>
+                        <article class="preview-summary-card preview-summary-card-warn"><span>未匹配</span><strong id="bulk-missing-count">0</strong></article>
+                    </div>
+                    <div class="preview-summary-grid compact-preview-grid">
+                        <article class="preview-summary-card"><span>覆盖</span><strong id="bulk-overwrite-count">0</strong></article>
+                        <article class="preview-summary-card"><span>补空</span><strong id="bulk-fill-count">0</strong></article>
+                        <article class="preview-summary-card"><span>跳过</span><strong id="bulk-skip-count">0</strong></article>
+                    </div>
+                    <div id="bulk-preview-list" class="bulk-preview-list"></div>
+                </div>
+
+                <div id="bulk-result" class="bulk-result"></div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const workbookSelect = document.getElementById('workbook-select');
+        const uploadWorkbookInput = document.getElementById('upload-workbook-input');
+        const uploadWorkbookButton = document.getElementById('upload-workbook');
+        const currentWorkbook = document.getElementById('current-workbook');
+        const experimentSelect = document.getElementById('experiment-select');
+        const experimentNameInput = document.getElementById('experiment-name-input');
+        const toast = document.getElementById('toast');
+        const resultsContainer = document.getElementById('student-results');
+        const selectedStudentBox = document.getElementById('selected-student');
+        const searchInput = document.getElementById('search-input');
+        const singleScoreInput = document.getElementById('single-score');
+        const searchPrevPageButton = document.getElementById('search-prev-page');
+        const searchNextPageButton = document.getElementById('search-next-page');
+        const searchPageIndicator = document.getElementById('search-page-indicator');
+        const searchPagination = document.getElementById('search-pagination');
+        const bulkInput = document.getElementById('bulk-input');
+        const sameScoreInput = document.getElementById('same-score');
+        const bulkModeSelect = document.getElementById('bulk-mode');
+        const bulkClearModeSelect = document.getElementById('bulk-clear-mode');
+        const bulkPreviewPanel = document.getElementById('bulk-preview-panel');
+        const bulkPreviewList = document.getElementById('bulk-preview-list');
+        const bulkResult = document.getElementById('bulk-result');
+        const bulkSummary = {
+            total_lines: document.getElementById('bulk-total-lines'),
+            matched_count: document.getElementById('bulk-matched-count'),
+            will_update_count: document.getElementById('bulk-update-count'),
+            missing_count: document.getElementById('bulk-missing-count'),
+            overwrite_count: document.getElementById('bulk-overwrite-count'),
+            fill_empty_count: document.getElementById('bulk-fill-count'),
+            skip_existing_count: document.getElementById('bulk-skip-count'),
+        };
+
+        let experiments = {{ experiments|tojson }};
+        let selectedStudent = null;
+        let searchRows = [];
+        let searchPage = 1;
+        let bulkPreviewData = null;
+        const searchPageSize = 5;
+
+        function getGenderLabel(name) {
+            return name.endsWith('*') ? '女' : '男';
+        }
+
+        function getDisplayName(name) {
+            return name.endsWith('*') ? name.slice(0, -1) : name;
+        }
+
+        function getCurrentExperimentOption() {
+            return experimentSelect.options[experimentSelect.selectedIndex];
+        }
+
+        function getCurrentExperimentLabel() {
+            const option = getCurrentExperimentOption();
+            return option ? option.textContent : '当前次数';
+        }
+
+        function getCurrentScoreText(student) {
+            const score = student.scores ? student.scores[experimentSelect.value] : null;
+            return score === null || score === undefined || score === '' ? '未录入' : score;
+        }
+
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.classList.toggle('error', isError);
+            toast.classList.add('visible');
+            window.clearTimeout(showToast.timer);
+            showToast.timer = window.setTimeout(() => toast.classList.remove('visible'), 2600);
+        }
+
+        function getCurrentExperiment() {
+            return experiments.find((experiment) => experiment.column === experimentSelect.value) || null;
+        }
+
+        function syncExperimentNameInput() {
+            const currentExperiment = getCurrentExperiment();
+            experimentNameInput.value = currentExperiment ? currentExperiment.name : '';
+        }
+
+        function updateSearchPagination() {
+            const totalPages = Math.max(1, Math.ceil(searchRows.length / searchPageSize));
+            searchPage = Math.min(searchPage, totalPages);
+            searchPage = Math.max(searchPage, 1);
+            searchPageIndicator.textContent = `${searchPage} / ${totalPages}`;
+            searchPrevPageButton.disabled = searchPage <= 1;
+            searchNextPageButton.disabled = searchPage >= totalPages;
+            searchPagination.hidden = searchRows.length <= searchPageSize;
+        }
+
+        function clearStudentState() {
+            selectedStudent = null;
+            searchRows = [];
+            searchPage = 1;
+            resultsContainer.innerHTML = '';
+            resultsContainer.hidden = true;
+            selectedStudentBox.textContent = '';
+            selectedStudentBox.hidden = true;
+            searchPageIndicator.textContent = '1 / 1';
+            searchPrevPageButton.disabled = true;
+            searchNextPageButton.disabled = true;
+            searchPagination.hidden = true;
+            searchInput.value = '';
+            singleScoreInput.value = '';
+        }
+
+        function clearBulkPreview() {
+            bulkPreviewData = null;
+            bulkPreviewPanel.hidden = true;
+            bulkPreviewList.innerHTML = '';
+            Object.values(bulkSummary).forEach((node) => {
+                node.textContent = '0';
+            });
+        }
+
+        function renderExperimentOptions() {
+            const currentValue = experimentSelect.value;
+            experimentSelect.innerHTML = '';
+            experiments.forEach((experiment) => {
+                const option = document.createElement('option');
+                option.value = experiment.column;
+                option.textContent = experiment.name;
+                experimentSelect.appendChild(option);
+            });
+            if (experiments.length) {
+                const matched = experiments.find((experiment) => experiment.column === currentValue);
+                experimentSelect.value = matched ? matched.column : experiments[0].column;
+            }
+            syncExperimentNameInput();
+        }
+
+        function renderStudents(students) {
+            resultsContainer.innerHTML = '';
+            selectedStudentBox.hidden = !selectedStudent;
+
+            if (!searchInput.value.trim()) {
+                searchRows = [];
+                resultsContainer.hidden = true;
+                updateSearchPagination();
+                return;
+            }
+
+            if (!students.length) {
+                searchRows = [];
+                resultsContainer.hidden = true;
+                updateSearchPagination();
+                return;
+            }
+
+            searchRows = students;
+            const start = (searchPage - 1) * searchPageSize;
+            const pageRows = searchRows.slice(start, start + searchPageSize);
+            pageRows.forEach((student) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'student-item';
+                if (selectedStudent && selectedStudent.row === student.row) {
+                    button.classList.add('active');
+                }
+                button.dataset.row = student.row;
+                button.innerHTML = `
+                    <strong>${getDisplayName(student.name)}</strong>
+                    <span>${student.student_id} / ${getGenderLabel(student.name)}</span>
+                    <span>${getCurrentExperimentLabel()}：${getCurrentScoreText(student)}</span>
+                `;
+                button.addEventListener('click', () => selectStudent(student));
+                resultsContainer.appendChild(button);
+            });
+
+            resultsContainer.hidden = false;
+            updateSearchPagination();
+        }
+
+        function selectStudent(student) {
+            selectedStudent = student;
+            selectedStudentBox.textContent = `当前选择：${getDisplayName(student.name)} / ${student.student_id} / ${getGenderLabel(student.name)} / ${getCurrentExperimentLabel()}：${getCurrentScoreText(student)}`;
+            selectedStudentBox.hidden = false;
+            renderStudents(searchRows);
+            singleScoreInput.focus();
+            singleScoreInput.select();
+        }
+
+        function selectNextStudent() {
+            if (!selectedStudent || !searchRows.length) {
+                return;
+            }
+            const currentIndex = searchRows.findIndex((item) => item.row === selectedStudent.row);
+            if (currentIndex === -1 || currentIndex === searchRows.length - 1) {
+                renderStudents(searchRows);
+                return;
+            }
+            const nextIndex = currentIndex + 1;
+            searchPage = Math.floor(nextIndex / searchPageSize) + 1;
+            selectStudent(searchRows[nextIndex]);
+        }
+
+        async function loadStudents(keyword = '') {
+            const response = await fetch(`/api/students?q=${encodeURIComponent(keyword)}`);
+            const data = await response.json();
+            renderStudents(data.students || []);
+        }
+
+        async function postJSON(url, payload) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || '请求失败');
+            }
+            return data;
+        }
+
+        async function refreshWorkbookState(data) {
+            currentWorkbook.textContent = data.workbook.name;
+            workbookSelect.innerHTML = '';
+            data.workbooks.forEach((workbook) => {
+                const option = document.createElement('option');
+                option.value = workbook.name;
+                option.textContent = workbook.name;
+                option.selected = workbook.selected;
+                workbookSelect.appendChild(option);
+            });
+            experiments = data.experiments || [];
+            renderExperimentOptions();
+            clearStudentState();
+            clearBulkPreview();
+            bulkResult.textContent = '';
+        }
+
+        function renderBulkPreview(data) {
+            bulkPreviewData = data;
+            bulkPreviewPanel.hidden = false;
+            Object.entries(data.summary).forEach(([key, value]) => {
+                if (bulkSummary[key]) {
+                    bulkSummary[key].textContent = value;
+                }
+            });
+
+            bulkPreviewList.innerHTML = '';
+            data.rows.forEach((row) => {
+                const item = document.createElement('div');
+                item.className = `bulk-preview-item bulk-preview-item-${row.status}`;
+                item.innerHTML = `
+                    <div class="bulk-preview-main">
+                        <strong>${row.matched ? `${row.student_id} ${getDisplayName(row.name)}` : row.input}</strong>
+                        <span>${row.status_text}</span>
+                    </div>
+                    <div class="bulk-preview-meta">
+                        <span>原成绩：${row.current_score_text || '/'}</span>
+                        <span>新成绩：${row.new_score_text || '/'}</span>
+                    </div>
+                `;
+                bulkPreviewList.appendChild(item);
+            });
+        }
+
+        async function runBulkPreview() {
+            if (!bulkInput.value.trim()) {
+                clearBulkPreview();
+                return;
+            }
+            const data = await postJSON('/api/scores/bulk/preview', {
+                column: experimentSelect.value,
+                entries: bulkInput.value,
+                same_score: sameScoreInput.value,
+                mode: bulkModeSelect.value,
+            });
+            renderBulkPreview(data);
+        }
+
+        uploadWorkbookButton.addEventListener('click', async () => {
+            if (!uploadWorkbookInput.files.length) {
+                showToast('请选择要导入的 xlsx 文件。', true);
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', uploadWorkbookInput.files[0]);
+            try {
+                const response = await fetch('/api/workbooks/upload', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || '请求失败');
+                }
+                await refreshWorkbookState(data);
+                uploadWorkbookInput.value = '';
+                showToast(data.message);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        document.getElementById('switch-workbook').addEventListener('click', async () => {
+            try {
+                const data = await postJSON('/api/workbooks/select', {
+                    filename: workbookSelect.value,
+                });
+                await refreshWorkbookState(data);
+                showToast(data.message);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        document.getElementById('rename-experiment').addEventListener('click', async () => {
+            if (!experimentSelect.value) {
+                showToast('当前没有可操作的次数列。', true);
+                return;
+            }
+            try {
+                const data = await postJSON('/api/experiments/rename', {
+                    column: experimentSelect.value,
+                    name: experimentNameInput.value,
+                });
+                experiments = experiments.map((experiment) =>
+                    experiment.column === data.experiment.column
+                        ? { ...experiment, name: data.experiment.name }
+                        : experiment
+                );
+                renderExperimentOptions();
+                experimentSelect.value = data.experiment.column;
+                if (searchInput.value.trim()) {
+                    await loadStudents(searchInput.value);
+                }
+                showToast(data.message);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        document.getElementById('add-experiment').addEventListener('click', async () => {
+            try {
+                const currentExperiment = getCurrentExperiment();
+                const rawName = experimentNameInput.value.trim();
+                const addName = currentExperiment && rawName === currentExperiment.name ? '' : rawName;
+                const data = await postJSON('/api/experiments/add', {
+                    name: addName,
+                });
+                experiments = data.experiments || [];
+                renderExperimentOptions();
+                if (data.experiment && data.experiment.column) {
+                    experimentSelect.value = data.experiment.column;
+                }
+                clearStudentState();
+                clearBulkPreview();
+                showToast(data.message);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        document.getElementById('delete-experiment').addEventListener('click', async () => {
+            if (!experimentSelect.value) {
+                showToast('当前没有可删除的次数列。', true);
+                return;
+            }
+            const targetExperiment = getCurrentExperiment();
+            const confirmed = window.confirm(`确定删除“${targetExperiment ? targetExperiment.name : experimentSelect.value}”这一列吗？`);
+            if (!confirmed) {
+                return;
+            }
+            try {
+                const data = await postJSON('/api/experiments/delete', {
+                    column: experimentSelect.value,
+                });
+                experiments = data.experiments || [];
+                renderExperimentOptions();
+                clearStudentState();
+                clearBulkPreview();
+                showToast(data.message);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        document.getElementById('save-single').addEventListener('click', async () => {
+            if (!selectedStudent) {
+                showToast('请先选择学生。', true);
+                return;
+            }
+            try {
+                const scoreValue = singleScoreInput.value;
+                const data = await postJSON('/api/scores/single', {
+                    column: experimentSelect.value,
+                    row: selectedStudent.row,
+                    score: scoreValue,
+                });
+                if (!selectedStudent.scores) {
+                    selectedStudent.scores = {};
+                }
+                selectedStudent.scores[experimentSelect.value] = scoreValue;
+                if (searchRows.length) {
+                    renderStudents(searchRows);
+                }
+                showToast(data.message);
+                singleScoreInput.value = '';
+                selectNextStudent();
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        document.getElementById('preview-bulk').addEventListener('click', async () => {
+            try {
+                await runBulkPreview();
+                if (bulkPreviewData) {
+                    showToast('已刷新批量预览。');
+                }
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        document.getElementById('save-bulk').addEventListener('click', async () => {
+            try {
+                await runBulkPreview();
+                if (!bulkPreviewData) {
+                    showToast('请先输入批量数据。', true);
+                    return;
+                }
+
+                const summary = bulkPreviewData.summary;
+                const confirmed = window.confirm(
+                    `本次将写入 ${summary.will_update_count} 条，未匹配 ${summary.missing_count} 条，跳过 ${summary.skip_existing_count} 条。是否继续？`
+                );
+                if (!confirmed) {
+                    return;
+                }
+
+                const data = await postJSON('/api/scores/bulk', {
+                    column: experimentSelect.value,
+                    entries: bulkInput.value,
+                    same_score: sameScoreInput.value,
+                    mode: bulkModeSelect.value,
+                });
+
+                const missing = data.missing.length ? ` 未匹配：${data.missing.join('、')}` : '';
+                const skipped = data.skipped.length ? ` 已跳过：${data.skipped.join('、')}` : '';
+                bulkResult.textContent = `${data.message}${missing}${skipped}`;
+                showToast(data.message);
+
+                if (bulkClearModeSelect.value === 'clear') {
+                    bulkInput.value = '';
+                    sameScoreInput.value = '';
+                }
+
+                await runBulkPreview().catch(() => clearBulkPreview());
+                if (searchInput.value.trim()) {
+                    await loadStudents(searchInput.value);
+                }
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        let searchTimer = null;
+        searchInput.addEventListener('input', () => {
+            searchPage = 1;
+            if (!searchInput.value.trim()) {
+                selectedStudent = null;
+                resultsContainer.innerHTML = '';
+                resultsContainer.hidden = true;
+                selectedStudentBox.textContent = '';
+                selectedStudentBox.hidden = true;
+                updateSearchPagination();
+            }
+            window.clearTimeout(searchTimer);
+            searchTimer = window.setTimeout(() => loadStudents(searchInput.value), 180);
+        });
+
+        searchInput.addEventListener('keydown', async (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            event.preventDefault();
+            window.clearTimeout(searchTimer);
+            await loadStudents(searchInput.value);
+        });
+
+        singleScoreInput.addEventListener('keydown', async (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            event.preventDefault();
+            document.getElementById('save-single').click();
+        });
+
+        bulkInput.addEventListener('paste', () => {
+            window.setTimeout(() => {
+                runBulkPreview().catch(() => clearBulkPreview());
+            }, 50);
+        });
+
+        let bulkPreviewTimer = null;
+        [bulkInput, sameScoreInput].forEach((node) => {
+            node.addEventListener('input', () => {
+                window.clearTimeout(bulkPreviewTimer);
+                bulkPreviewTimer = window.setTimeout(() => {
+                    runBulkPreview().catch(() => clearBulkPreview());
+                }, 220);
+            });
+        });
+
+        [bulkModeSelect, experimentSelect].forEach((node) => {
+            node.addEventListener('change', () => {
+                runBulkPreview().catch(() => clearBulkPreview());
+            });
+        });
+
+        searchPrevPageButton.addEventListener('click', () => {
+            searchPage -= 1;
+            renderStudents(searchRows);
+        });
+
+        searchNextPageButton.addEventListener('click', () => {
+            searchPage += 1;
+            renderStudents(searchRows);
+        });
+
+        experimentSelect.addEventListener('change', async () => {
+            syncExperimentNameInput();
+            clearBulkPreview();
+            if (searchInput.value.trim()) {
+                await loadStudents(searchInput.value);
+            }
+        });
+
+        renderExperimentOptions();
+        clearStudentState();
+        clearBulkPreview();
+    </script>
+</body>
+</html>

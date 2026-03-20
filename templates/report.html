@@ -1,0 +1,280 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>成绩查看</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="hero hero-report">
+            <div class="hero-copy">
+                <h1>成绩查看</h1>
+            </div>
+            <div class="workbook-card workbook-card-report">
+                <span>当前文件</span>
+                <strong id="report-current-workbook">{{ workbook_name }}</strong>
+            </div>
+        </section>
+
+        <nav class="page-nav">
+            <a class="nav-link" href="/">录分页面</a>
+            <a class="nav-link active" href="/report">成绩查看</a>
+        </nav>
+
+        <section class="panel toolbar-panel">
+            <div class="toolbar-header">
+                <div>
+                    <h2>文件与次数筛选</h2>
+                </div>
+                <div id="report-toast" class="toast"></div>
+            </div>
+
+            <div class="toolbar-grid">
+                <div class="field field-grow">
+                    <label for="report-workbook-select">Excel 文件</label>
+                    <select id="report-workbook-select">
+                        {% for workbook in workbook_choices %}
+                        <option value="{{ workbook.name }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field field-grow">
+                    <label for="report-experiment-select">次数</label>
+                    <select id="report-experiment-select">
+                        {% for experiment in experiments %}
+                        <option value="{{ experiment.column }}" {% if experiment.column == current_column %}selected{% endif %}>{{ experiment.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="button-cluster single-action">
+                    <button id="report-switch-workbook" type="button">切换文件</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="report-layout refined-report-layout">
+            <section class="panel summary-panel accent-panel">
+                <div class="section-title section-title-tight">
+                    <h2 id="report-title">{{ report.experiment.name }}</h2>
+                </div>
+
+                <div class="stats-grid stats-grid-large report-status-grid">
+                    <article class="stat-card emphasis-card">
+                        <span>已评分</span>
+                        <strong id="stat-scored">{{ report.summary.scored_students }}</strong>
+                    </article>
+                    <article class="stat-card">
+                        <span>未评分</span>
+                        <strong id="stat-missing">{{ report.summary.missing_students }}</strong>
+                    </article>
+                </div>
+            </section>
+
+            <section class="panel table-panel reading-panel">
+                <div class="section-title section-title-tight">
+                    <h2>成绩</h2>
+                </div>
+
+                <div class="report-search-box">
+                    <div class="row report-search-row">
+                        <div class="field field-grow">
+                            <label for="report-search-input">搜索学生成绩</label>
+                            <input id="report-search-input" type="text" placeholder="输入学号或姓名，查看当前次数成绩">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="score-table-wrap refined-table-wrap">
+                    <table class="score-table refined-table">
+                        <thead>
+                            <tr>
+                                <th>姓名</th>
+                                <th>学号</th>
+                                <th>性别</th>
+                                <th>成绩</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body">
+                            {% for row in report.rows[:5] %}
+                            <tr>
+                                <td>{{ row.display_name }}</td>
+                                <td>{{ row.student_id }}</td>
+                                <td>{{ row.gender }}</td>
+                                <td class="score-cell">{{ row.score_text if row.score_text else '/' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination-bar refined-pagination">
+                    <div class="row pagination-row">
+                        <div class="pagination-actions">
+                            <button type="button" id="prev-page" class="secondary-button">上一页</button>
+                            <span id="page-indicator" class="page-indicator">1 / 1</span>
+                            <button type="button" id="next-page" class="secondary-button">下一页</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const workbookSelect = document.getElementById('report-workbook-select');
+        const experimentSelect = document.getElementById('report-experiment-select');
+        const currentWorkbook = document.getElementById('report-current-workbook');
+        const toast = document.getElementById('report-toast');
+        const title = document.getElementById('report-title');
+        const tableBody = document.getElementById('report-table-body');
+        const searchInput = document.getElementById('report-search-input');
+        const prevPageButton = document.getElementById('prev-page');
+        const nextPageButton = document.getElementById('next-page');
+        const pageIndicator = document.getElementById('page-indicator');
+        const stats = {
+            scored: document.getElementById('stat-scored'),
+            missing: document.getElementById('stat-missing'),
+        };
+        let allRows = {{ report.rows|tojson }};
+        let filteredRows = [...allRows];
+        let currentPage = 1;
+
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.classList.toggle('error', isError);
+            toast.classList.add('visible');
+            window.clearTimeout(showToast.timer);
+            showToast.timer = window.setTimeout(() => toast.classList.remove('visible'), 2200);
+        }
+
+        function formatValue(value) {
+            return value === null || value === undefined || value === '' ? '/' : value;
+        }
+
+        function updatePagination() {
+            const pageSize = 5;
+            const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+            currentPage = Math.min(currentPage, totalPages);
+            currentPage = Math.max(currentPage, 1);
+            pageIndicator.textContent = `${currentPage} / ${totalPages}`;
+            prevPageButton.disabled = currentPage <= 1;
+            nextPageButton.disabled = currentPage >= totalPages;
+        }
+
+        function renderTable() {
+            tableBody.innerHTML = '';
+            const pageSize = 5;
+            const start = (currentPage - 1) * pageSize;
+            const pageRows = filteredRows.slice(start, start + pageSize);
+            if (!pageRows.length) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="4" class="table-empty">没有找到匹配的成绩。</td>';
+                tableBody.appendChild(tr);
+                updatePagination();
+                return;
+            }
+            pageRows.forEach((row) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${row.display_name}</td><td>${row.student_id}</td><td>${row.gender}</td><td class="score-cell">${row.score_text || '/'}</td>`;
+                tableBody.appendChild(tr);
+            });
+            updatePagination();
+        }
+
+        async function fetchReport(column) {
+            const response = await fetch(`/api/report?column=${encodeURIComponent(column)}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || '请求失败');
+            }
+            return data;
+        }
+
+        async function postJSON(url, payload) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || '请求失败');
+            }
+            return data;
+        }
+
+        function applySearchFilter() {
+            const keyword = searchInput.value.trim().toLowerCase();
+            filteredRows = keyword
+                ? allRows.filter((row) =>
+                    row.student_id.toLowerCase().includes(keyword) ||
+                    row.display_name.toLowerCase().includes(keyword) ||
+                    row.name.toLowerCase().includes(keyword)
+                )
+                : [...allRows];
+            currentPage = 1;
+            renderTable();
+        }
+
+        async function refreshReport(column) {
+            const data = await fetchReport(column);
+            title.textContent = data.experiment.name;
+            stats.scored.textContent = formatValue(data.summary.scored_students);
+            stats.missing.textContent = formatValue(data.summary.missing_students);
+            allRows = data.rows;
+            filteredRows = [...allRows];
+            applySearchFilter();
+        }
+
+        prevPageButton.addEventListener('click', () => {
+            currentPage -= 1;
+            renderTable();
+        });
+
+        nextPageButton.addEventListener('click', () => {
+            currentPage += 1;
+            renderTable();
+        });
+
+        experimentSelect.addEventListener('change', async () => {
+            try {
+                await refreshReport(experimentSelect.value);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        let searchTimer = null;
+        searchInput.addEventListener('input', () => {
+            window.clearTimeout(searchTimer);
+            searchTimer = window.setTimeout(() => {
+                applySearchFilter();
+            }, 120);
+        });
+
+        document.getElementById('report-switch-workbook').addEventListener('click', async () => {
+            try {
+                const switched = await postJSON('/api/workbooks/select', {
+                    filename: workbookSelect.value,
+                });
+                currentWorkbook.textContent = switched.workbook.name;
+                experimentSelect.innerHTML = '';
+                switched.experiments.forEach((experiment) => {
+                    const option = document.createElement('option');
+                    option.value = experiment.column;
+                    option.textContent = experiment.name;
+                    experimentSelect.appendChild(option);
+                });
+                await refreshReport(experimentSelect.value);
+                showToast(switched.message);
+            } catch (error) {
+                showToast(error.message, true);
+            }
+        });
+
+        renderTable();
+    </script>
+</body>
+</html>

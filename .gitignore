@@ -1,0 +1,16 @@
+# Ignore everything by default
+*
+
+# Keep this file
+!.gitignore
+
+# Keep required top-level files
+!app.py
+!requirements.txt
+!README.md
+
+# Keep required directories
+!static/
+!static/**
+!templates/
+!templates/**
