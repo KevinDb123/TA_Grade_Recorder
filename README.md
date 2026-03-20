@@ -1,4 +1,6 @@
-# TA_Grade_Recorder 中科大学生名单作业/实验成绩登记工具
+# TA_Grade_Recorder
+
+# 中科大学生名单作业/实验成绩登记工具
 
 一个基于 Flask 和 openpyxl 的本地成绩登记工具，用来维护中科大学生名单 Excel 中的作业、实验或平时成绩。
 
