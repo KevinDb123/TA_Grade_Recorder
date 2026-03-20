@@ -36,7 +36,7 @@
                     <label for="report-workbook-select">Excel 文件</label>
                     <select id="report-workbook-select">
                         {% for workbook in workbook_choices %}
-                        <option value="{{ workbook.name }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.name }}</option>
+                        <option value="{{ workbook.value }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.label }}</option>
                         {% endfor %}
                     </select>
                 </div>

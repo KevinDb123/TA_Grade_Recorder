@@ -63,10 +63,29 @@ class GradeBook:
         return sorted(self.base_dir.glob("*.xlsx"))
 
     def workbook_choices(self) -> list[dict[str, Any]]:
-        return [
-            {"name": file.name, "selected": file == self.workbook_path}
-            for file in self.list_workbooks()
+        files = self.list_workbooks()
+        choices = [
+            {
+                "name": file.name,
+                "label": file.name,
+                "value": str(file.resolve()),
+                "selected": file == self.workbook_path,
+            }
+            for file in files
         ]
+
+        if self.workbook_path and self.workbook_path not in files:
+            choices.insert(
+                0,
+                {
+                    "name": self.workbook_path.name,
+                    "label": f"{self.workbook_path.name} (当前文件)",
+                    "value": str(self.workbook_path.resolve()),
+                    "selected": True,
+                },
+            )
+
+        return choices
 
     def _find_workbook(self) -> Path | None:
         files = self.list_workbooks()
@@ -78,12 +97,32 @@ class GradeBook:
         return self.workbook_path
 
     def set_workbook(self, filename: str) -> dict[str, str]:
-        target = next((file for file in self.list_workbooks() if file.name == filename), None)
+        target = self._resolve_workbook_reference(filename)
         if target is None:
             raise ValueError("未找到指定的 xlsx 文件。")
         with self.lock:
             self.workbook_path = target
         return {"name": target.name}
+
+    def _resolve_workbook_reference(self, workbook_ref: str) -> Path | None:
+        if not workbook_ref:
+            return None
+
+        candidate = Path(workbook_ref).expanduser()
+        if candidate.exists() and candidate.is_file() and candidate.suffix.lower() == ".xlsx":
+            return candidate.resolve()
+
+        return next((file for file in self.list_workbooks() if file.name == workbook_ref), None)
+
+    def open_workbook_path(self, workbook_path: str) -> dict[str, str]:
+        target = Path(workbook_path).expanduser()
+        if not target.exists() or not target.is_file():
+            raise ValueError("未找到指定的 Excel 文件。")
+        if target.suffix.lower() != ".xlsx":
+            raise ValueError("只能打开 xlsx 文件。")
+        with self.lock:
+            self.workbook_path = target.resolve()
+        return {"name": self.workbook_path.name}
 
     def import_workbook(self, file_storage) -> dict[str, str]:
         original_name = file_storage.filename or ""
@@ -750,6 +789,20 @@ def api_select_workbook():
     return jsonify(
         {
             "message": "已切换 Excel 文件。",
+            "workbook": result,
+            "workbooks": gradebook.workbook_choices(),
+            "experiments": gradebook.get_experiments(),
+        }
+    )
+
+
+@app.post("/api/workbooks/open-path")
+def api_open_workbook_path():
+    payload = request.get_json(force=True)
+    result = gradebook.open_workbook_path(payload["path"])
+    return jsonify(
+        {
+            "message": "已打开 Excel 文件。",
             "workbook": result,
             "workbooks": gradebook.workbook_choices(),
             "experiments": gradebook.get_experiments(),

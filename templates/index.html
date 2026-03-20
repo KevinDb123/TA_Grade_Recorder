@@ -41,7 +41,7 @@
                             <label for="workbook-select">Excel 文件</label>
                             <select id="workbook-select">
                                 {% for workbook in workbook_choices %}
-                                <option value="{{ workbook.name }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.name }}</option>
+                                <option value="{{ workbook.value }}" {% if workbook.selected %}selected{% endif %}>{{ workbook.label }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -194,6 +194,9 @@
         const bulkPreviewPanel = document.getElementById('bulk-preview-panel');
         const bulkPreviewList = document.getElementById('bulk-preview-list');
         const bulkResult = document.getElementById('bulk-result');
+        const tauriInvoke = window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function'
+            ? window.__TAURI_INTERNALS__.invoke
+            : null;
         const bulkSummary = {
             total_lines: document.getElementById('bulk-total-lines'),
             matched_count: document.getElementById('bulk-matched-count'),
@@ -390,8 +393,8 @@
             workbookSelect.innerHTML = '';
             data.workbooks.forEach((workbook) => {
                 const option = document.createElement('option');
-                option.value = workbook.name;
-                option.textContent = workbook.name;
+                option.value = workbook.value;
+                option.textContent = workbook.label;
                 option.selected = workbook.selected;
                 workbookSelect.appendChild(option);
             });
@@ -444,6 +447,23 @@
         }
 
         uploadWorkbookButton.addEventListener('click', async () => {
+            if (tauriInvoke) {
+                try {
+                    const pickedPath = await tauriInvoke('pick_workbook');
+                    if (!pickedPath) {
+                        return;
+                    }
+                    const data = await postJSON('/api/workbooks/open-path', {
+                        path: pickedPath,
+                    });
+                    await refreshWorkbookState(data);
+                    showToast(data.message);
+                } catch (error) {
+                    showToast(error.message, true);
+                }
+                return;
+            }
+
             if (!uploadWorkbookInput.files.length) {
                 showToast('请选择要导入的 xlsx 文件。', true);
                 return;
