@@ -1,10 +1,7 @@
 <<<<<<< HEAD
 # TA Grade Recorder
-=======
-# TA_Grade_Recorder
 
 # 中科大学生名单作业/实验成绩登记工具
->>>>>>> 9582e40b3bba5d3acb82b7982355317bb73f650a
 
 一个用于助教登记作业、实验和平时成绩的本地工具，适配中科大学生名单类 Excel。
 
