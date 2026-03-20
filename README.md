@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # TA Grade Recorder
 
 # 中科大学生名单作业/实验成绩登记工具
